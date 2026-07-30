@@ -1,9 +1,13 @@
 import os
 
 # LLM Configuration
-OLLAMA_URL = "http://localhost:11434/api/generate"
+OLLAMA_URL = "http://localhost:11434/api/chat"
 MODEL_NAME = "phi3:mini"
 LLM_TIMEOUT = 10 # seconds
+
+# Memory Configuration
+MAX_EXCHANGES = 10
+MAX_MESSAGES = MAX_EXCHANGES * 2
 
 # STT Configuration
 WHISPER_MODEL = "base"
