@@ -1,5 +1,6 @@
 import requests
-from app.config import OLLAMA_URL, MODEL_NAME
+import traceback
+from app.config import OLLAMA_URL, MODEL_NAME, LLM_TIMEOUT
 
 
 SYSTEM_PROMPT = """
@@ -37,6 +38,9 @@ Freya: Then why are we both still conscious at this hour?
 
 
 def generate_response(prompt: str):
+    prompt = prompt.strip()
+    if not prompt:
+        return ""
 
     final_prompt = f"""
 {SYSTEM_PROMPT}
@@ -46,19 +50,31 @@ User: {prompt}
 Freya:
 """
 
-    response = requests.post(
-        OLLAMA_URL,
-        json={
-            "model": MODEL_NAME,
-            "prompt": final_prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0.8,
-                "num_predict": 60
-            }
-        }
-    )
-
-    data = response.json()
-
-    return data["response"].strip()
+    try:
+        print(f"[DEBUG] LLM request sent to {OLLAMA_URL} with prompt length {len(final_prompt)}")
+        response = requests.post(
+            OLLAMA_URL,
+            json={
+                "model": MODEL_NAME,
+                "prompt": final_prompt,
+                "stream": False,
+                "options": {
+                    "temperature": 0.8,
+                    "num_predict": 60
+                }
+            },
+            timeout=LLM_TIMEOUT
+        )
+        response.raise_for_status()
+        data = response.json()
+        resp_text = data.get("response", "").strip()
+        print(f"[DEBUG] LLM response received: '{resp_text}'")
+        return resp_text
+    except requests.exceptions.RequestException as e:
+        print(f"\n[LLM Error] {e}")
+        traceback.print_exc()
+        return "I'm having trouble thinking right now."
+    except Exception as e:
+        print(f"\n[LLM Unexpected Error] {e}")
+        traceback.print_exc()
+        return "Oops, my brain just glitched."
