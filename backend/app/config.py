@@ -26,3 +26,7 @@ VOICE_MODEL = r"C:\piper\piper\models\en_US-amy-medium.onnx"
 # Wake Word Configuration
 WAKE_WORD = "hey freya"
 WAKE_WORD_THRESHOLD = 1e-15  # Pocketsphinx keyword spotter threshold
+
+# Context Configuration
+CONTEXT_ENABLED = True
+CONTEXT_POLL_INTERVAL = 1.0
