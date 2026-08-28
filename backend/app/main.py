@@ -3,6 +3,7 @@ from app.tts import speak
 from app.stt import listen, listen_for_wake_word
 from app.memory import ConversationMemory
 from app.context import ContextEngine
+from app.activity import ActivityEngine
 import traceback
 import threading
 import queue
@@ -14,7 +15,9 @@ def main():
 
     memory = ConversationMemory()
     context_engine = ContextEngine()
+    activity_engine = ActivityEngine(context_engine)
     context_engine.start()
+    activity_engine.start()
     
     next_user_input = None
     is_ambient_mode = True
@@ -129,6 +132,8 @@ def main():
     except KeyboardInterrupt:
         print("\n\nShutting down Freya. Goodbye!")
     finally:
+        if 'activity_engine' in locals():
+            activity_engine.stop()
         if 'context_engine' in locals():
             context_engine.stop()
 
