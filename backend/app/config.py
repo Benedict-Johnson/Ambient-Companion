@@ -15,6 +15,14 @@ SAMPLE_RATE = 16000
 VAD_THRESHOLD = 0.01  # RMS threshold for voice activity
 SILENCE_DURATION = 1.2  # Seconds of silence before stopping recording
 
+# Barge-In Configuration
+BARGE_IN_THRESHOLD_MULTIPLIER = 2.0
+BARGE_IN_CONSECUTIVE_CHUNKS = 3
+
 # TTS Configuration
 PIPER_PATH = r"C:\piper\piper\piper.exe"
 VOICE_MODEL = r"C:\piper\piper\models\en_US-amy-medium.onnx"
+
+# Wake Word Configuration
+WAKE_WORD = "hey freya"
+WAKE_WORD_THRESHOLD = 1e-15  # Pocketsphinx keyword spotter threshold

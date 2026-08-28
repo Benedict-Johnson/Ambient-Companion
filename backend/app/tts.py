@@ -3,11 +3,12 @@ import sounddevice as sd
 import soundfile as sf
 import tempfile
 import os
+import threading
 import traceback
 from app.config import PIPER_PATH, VOICE_MODEL
 
 
-def speak(text: str):
+def speak(text: str, interruption_event: threading.Event = None):
     text = text.strip()
     if not text:
         return
@@ -47,11 +48,31 @@ def speak(text: str):
             print(f"\n[TTS Error] Piper process failed with code {process.returncode}")
             return
 
+        import numpy as np
+
         # Play audio
         data, samplerate = sf.read(temp_wav_path)
+        data = data.astype(np.float32, copy=False)
+        
         print(f"[DEBUG] Piper playback started.")
-        sd.play(data, samplerate)
-        sd.wait()
+        print(f"[DEBUG] TTS audio dtype: {data.dtype}")
+        print(f"[DEBUG] TTS audio shape: {data.shape}")
+        print(f"[DEBUG] TTS sample rate: {samplerate}")
+        
+        chunk_size = int(samplerate * 0.1) # 100ms chunks
+        channels = 1 if len(data.shape) == 1 else data.shape[1]
+        
+        stream = sd.OutputStream(samplerate=samplerate, channels=channels, dtype="float32")
+        stream.start()
+        
+        for i in range(0, len(data), chunk_size):
+            if interruption_event and interruption_event.is_set():
+                break
+            chunk = data[i:i+chunk_size]
+            stream.write(chunk)
+            
+        stream.stop()
+        stream.close()
         print(f"[DEBUG] Piper playback finished.")
         
     except Exception as e:

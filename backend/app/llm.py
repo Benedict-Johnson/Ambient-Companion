@@ -4,6 +4,7 @@ import time
 import queue
 import json
 import re
+import threading
 from app.config import OLLAMA_URL, MODEL_NAME, LLM_TIMEOUT
 
 
@@ -52,7 +53,7 @@ def _sanitize_chunk(text: str) -> str:
     return '\n'.join(clean_lines).strip()
 
 
-def stream_response(prompt: str, history: list, sentence_queue: queue.Queue):
+def stream_response(prompt: str, history: list, sentence_queue: queue.Queue, interruption_event: threading.Event = None):
     prompt = prompt.strip()
     if not prompt:
         sentence_queue.put(None)
@@ -95,6 +96,11 @@ def stream_response(prompt: str, history: list, sentence_queue: queue.Queue):
         response.raise_for_status()
         
         for line in response.iter_lines():
+            if interruption_event and interruption_event.is_set():
+                print("[DEBUG] LLM stream cancellation requested.")
+                response.close()
+                break
+                
             if line:
                 if first_token_time is None:
                     first_token_time = time.time()
