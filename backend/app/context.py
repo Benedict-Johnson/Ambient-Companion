@@ -12,6 +12,7 @@ class ContextEngine:
         self._running = False
         self._thread = None
         self._lock = threading.Lock()
+        self._listeners = []
         
         self._context = {
             "timestamp": "unknown",
@@ -58,7 +59,6 @@ class ContextEngine:
             
             hwnd = user32.GetForegroundWindow()
             if not hwnd:
-                print(f"[DEBUG] GetForegroundWindow returned {hwnd}")
                 return "unknown", "unknown", "unknown"
                 
             length = user32.GetWindowTextLengthW(hwnd)
@@ -81,8 +81,6 @@ class ContextEngine:
                     process_name = exe_path_buf.value.split("\\")[-1]
                     application_name = process_name.replace(".exe", "")
                 kernel32.CloseHandle(h_process)
-            else:
-                print(f"[DEBUG] OpenProcess failed for pid {pid.value}")
                 
             return application_name, window_title, process_name
         except Exception as e:
@@ -110,6 +108,14 @@ class ContextEngine:
                 self._context["active_application"] = app_name
                 self._context["active_window"] = win_title
                 self._context["active_process"] = proc_name
+                current_context = self._context.copy()
+                listeners = list(self._listeners)
+                
+            for listener in listeners:
+                try:
+                    listener(current_context)
+                except Exception as e:
+                    print(f"[DEBUG Context] Listener error: {e}")
                 
             if app_name != last_app or win_title != last_win:
                 if app_name != "unknown" or win_title != "unknown":
@@ -122,6 +128,16 @@ class ContextEngine:
     def get_context(self):
         with self._lock:
             return self._context.copy()
+
+    def add_listener(self, callback):
+        with self._lock:
+            if callback not in self._listeners:
+                self._listeners.append(callback)
+
+    def remove_listener(self, callback):
+        with self._lock:
+            if callback in self._listeners:
+                self._listeners.remove(callback)
 
     def update_freya_state(self, state):
         with self._lock:

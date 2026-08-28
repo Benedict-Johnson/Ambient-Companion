@@ -30,3 +30,8 @@ WAKE_WORD_THRESHOLD = 1e-15  # Pocketsphinx keyword spotter threshold
 # Context Configuration
 CONTEXT_ENABLED = True
 CONTEXT_POLL_INTERVAL = 1.0
+
+# Activity Configuration
+ACTIVITY_ENABLED = True
+ACTIVITY_DEBOUNCE_SECONDS = 2.0
+ACTIVITY_DURATION_MILESTONES = [300, 900, 1800, 3600]
