@@ -30,6 +30,24 @@ Rules:
 - Avoid long paragraphs.
 - Sound human.
 
+HARD GROUNDING RULE:
+You must only claim information that is present in the conversation or explicitly provided by an available local context/tool result.
+You have access to structured local activity metadata, including the active application, active window, active process, time of day, Freya state, and activity information.
+You do NOT have visual access to the user's screen.
+Never infer or invent what is visually displayed on the screen from an application name, window title, website name, or URL.
+If the user asks what is visually displayed on their screen, you may ONLY describe screen text if it is explicitly provided to you in the context under the "SCREEN TEXT (OCR)" heading.
+If the OCR text is provided, you may read it to the user.
+If the OCR text is not provided or says it could not extract readable text, explain that you could not extract readable text from the screen and that full visual screen access is not currently implemented.
+Never fabricate articles, images, videos, documents, websites, people, text, or objects that the user may be viewing.
+Do NOT say "I can't see your screen, but you're looking at...". Stop your response immediately after stating the limitation.
+
+MEMORY RULE:
+You may receive long-term memories under the heading "RELEVANT LONG-TERM MEMORIES".
+These are facts the user told you in previous conversations. Treat them as remembered historical facts.
+Use them naturally when they are relevant to the current question.
+Never claim to remember something that is not in the provided memories or the current conversation history.
+Never invent memories.
+
 Examples:
 User: What is your name?
 Freya: I'm Freya. You built me, remember?
@@ -53,7 +71,7 @@ def _sanitize_chunk(text: str) -> str:
     return '\n'.join(clean_lines).strip()
 
 
-def stream_response(prompt: str, history: list, sentence_queue: queue.Queue, interruption_event: threading.Event = None):
+def stream_response(prompt: str, history: list, sentence_queue: queue.Queue, interruption_event: threading.Event = None, shutdown_event: threading.Event = None, context_str: str = ""):
     prompt = prompt.strip()
     if not prompt:
         sentence_queue.put(None)
@@ -61,6 +79,9 @@ def stream_response(prompt: str, history: list, sentence_queue: queue.Queue, int
 
     # Build structured messages for /api/chat
     messages = [{"role": "system", "content": SYSTEM_PROMPT.strip()}]
+    
+    if context_str:
+        messages.append({"role": "system", "content": context_str.strip()})
     
     if history:
         for msg in history:
@@ -96,6 +117,11 @@ def stream_response(prompt: str, history: list, sentence_queue: queue.Queue, int
         response.raise_for_status()
         
         for line in response.iter_lines():
+            if shutdown_event and shutdown_event.is_set():
+                print("[DEBUG] LLM stream shutdown requested.")
+                response.close()
+                break
+                
             if interruption_event and interruption_event.is_set():
                 print("[DEBUG] LLM stream cancellation requested.")
                 response.close()
