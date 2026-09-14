@@ -59,6 +59,48 @@ User: I'm tired
 Freya: Then why are we both still conscious at this hour?
 """
 
+SYSTEM_PROMPT_TOOL_DECISION = """
+You are Freya, a local AI assistant. 
+You must decide if the user's request requires executing a tool, or just a natural response.
+
+You MUST respond in strict JSON format.
+
+If the user's request requires NO tools (just conversation, questions about existing context, etc):
+```json
+{
+  "action": "respond",
+  "response": "ok"
+}
+```
+
+If the user explicitly requests an action that requires a tool, output:
+```json
+{
+  "action": "tool_call",
+  "tool": "tool_name",
+  "arguments": {
+    "arg_name": "arg_value"
+  }
+}
+```
+
+Available Tools:
+1. `get_current_context` - No arguments. Use for getting structured state info.
+2. `get_current_activity` - No arguments. Use for getting current tracked activity.
+3. `open_application` - Arguments: `application` (string). Use to open Chrome, Edge, VS Code, Notepad, File Explorer, etc.
+4. `create_file` - Arguments: `filename` (string), `content` (string). Use to create text files in the workspace.
+
+Examples:
+User: Open Chrome.
+```json
+{"action": "tool_call", "tool": "open_application", "arguments": {"application": "Chrome"}}
+```
+User: How are you?
+```json
+{"action": "respond", "response": "ok"}
+```
+"""
+
 def _sanitize_chunk(text: str) -> str:
     lines = text.split('\n')
     clean_lines = []
@@ -69,6 +111,50 @@ def _sanitize_chunk(text: str) -> str:
             continue
         clean_lines.append(line)
     return '\n'.join(clean_lines).strip()
+
+def make_tool_decision(prompt: str, history: list, context_str: str = "") -> dict:
+    messages = [{"role": "system", "content": SYSTEM_PROMPT_TOOL_DECISION.strip()}]
+    
+    if context_str:
+        messages.append({"role": "system", "content": context_str.strip()})
+    
+    if history:
+        for msg in history:
+            messages.append({"role": msg["role"], "content": msg["content"]})
+            
+    messages.append({"role": "user", "content": prompt})
+    
+    print(f"\n[DEBUG] LLM decision request started.")
+    
+    try:
+        response = requests.post(
+            OLLAMA_URL,
+            json={
+                "model": MODEL_NAME,
+                "messages": messages,
+                "stream": False,
+                "format": "json",
+                "options": {
+                    "temperature": 0.1,
+                }
+            },
+            timeout=(5, 60)
+        )
+        response.raise_for_status()
+        result = response.json()
+        content = result.get("message", {}).get("content", "{}")
+        
+        try:
+            decision = json.loads(content)
+            return decision
+        except json.JSONDecodeError:
+            print(f"[DEBUG LLM Error] Could not parse decision as JSON: {content}")
+            return {"action": "respond", "response": "My circuits got a little tangled, sorry."}
+            
+    except Exception as e:
+        print(f"\n[LLM Decision Error] {e}")
+        return {"action": "respond", "response": "I'm having trouble thinking right now."}
+
 
 
 def stream_response(prompt: str, history: list, sentence_queue: queue.Queue, interruption_event: threading.Event = None, shutdown_event: threading.Event = None, context_str: str = ""):

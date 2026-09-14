@@ -1,16 +1,17 @@
-from app.llm import stream_response
+from app.llm import stream_response, make_tool_decision
 from app.tts import speak
 from app.stt import listen, listen_for_wake_word
 from app.memory import ConversationMemory
 from app.context import ContextEngine
 from app.activity import ActivityEngine
+from app.tools import execute_tool
 import traceback
 import threading
 import queue
+import json
 from app.stt import MIC_STREAM
 from app.ocr import capture_screen_text
 from app.rag import MemoryStore, extract_memories
-
 GLOBAL_SHUTDOWN = threading.Event()
 
 
@@ -89,6 +90,21 @@ def main():
                         context_str += f"* {mem['text']}\n"
                 
                 context_engine.update_freya_state("thinking")
+                
+                # Tool Decision Pass
+                decision = make_tool_decision(user_input, history, context_str)
+                if decision.get("action") == "tool_call":
+                    tool_name = decision.get("tool")
+                    tool_args = decision.get("arguments", {})
+                    print(f"[DEBUG TOOL] Requested tool: {tool_name}")
+                    
+                    tool_result = execute_tool(tool_name, tool_args, context_engine=context_engine, activity_engine=activity_engine)
+                    
+                    context_str += f"\nTOOL EXECUTION RESULT:\n{json.dumps(tool_result)}\n"
+                    print(f"[DEBUG TOOL] Result injected into context.")
+                else:
+                    print("[DEBUG TOOL] No tool required.")
+                
                 llm_thread = threading.Thread(
                     target=stream_response,
                     args=(user_input, history, sentence_queue, interruption_event, GLOBAL_SHUTDOWN, context_str)
