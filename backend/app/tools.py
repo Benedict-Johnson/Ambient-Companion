@@ -1,5 +1,7 @@
 import os
 import subprocess
+import urllib.parse
+import webbrowser
 from typing import Dict, Any, Callable
 from pathlib import Path
 
@@ -139,6 +141,30 @@ def create_file(arguments: Dict[str, Any], context_engine=None, activity_engine=
             "success": False,
             "tool": "create_file",
             "error": f"Failed to create file: {str(e)}"
+        }
+
+@register_tool("google_search")
+def google_search(arguments: Dict[str, Any], context_engine=None, activity_engine=None) -> Dict[str, Any]:
+    query = arguments.get("query")
+    if not query:
+        return {"success": False, "tool": "google_search", "error": "Query not provided."}
+        
+    try:
+        encoded_query = urllib.parse.quote(query)
+        url = f"https://www.google.com/search?q={encoded_query}"
+        webbrowser.open(url)
+        
+        return {
+            "success": True,
+            "tool": "google_search",
+            "query": query,
+            "result": "Opened Google search results."
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "tool": "google_search",
+            "error": f"Failed to perform Google search: {str(e)}"
         }
 
 

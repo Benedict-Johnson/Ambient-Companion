@@ -65,7 +65,7 @@ You must decide if the user's request requires executing a tool, or just a natur
 
 You MUST respond in strict JSON format.
 
-If the user's request requires NO tools (just conversation, questions about existing context, etc):
+If the user's request requires NO tools (just conversation, answering questions, or receiving personal information):
 ```json
 {
   "action": "respond",
@@ -88,12 +88,25 @@ Available Tools:
 1. `get_current_context` - No arguments. Use for getting structured state info.
 2. `get_current_activity` - No arguments. Use for getting current tracked activity.
 3. `open_application` - Arguments: `application` (string). Use to open Chrome, Edge, VS Code, Notepad, File Explorer, etc.
-4. `create_file` - Arguments: `filename` (string), `content` (string). Use to create text files in the workspace.
+4. `create_file` - Arguments: `filename` (string), `content` (string). ONLY use this if the user explicitly asks to "create a file", "save this to a file", or write to a file. DO NOT use this tool for saving personal information or notes unless explicitly requested.
+5. `google_search` - Arguments: `query` (string). ONLY use this if the user explicitly asks to search Google for something. It will open their browser with the query.
 
 Examples:
 User: Open Chrome.
 ```json
 {"action": "tool_call", "tool": "open_application", "arguments": {"application": "Chrome"}}
+```
+User: Create a file called notes.txt containing Hello World.
+```json
+{"action": "tool_call", "tool": "create_file", "arguments": {"filename": "notes.txt", "content": "Hello World."}}
+```
+User: Google search how to install PostgreSQL on Windows
+```json
+{"action": "tool_call", "tool": "google_search", "arguments": {"query": "how to install PostgreSQL on Windows"}}
+```
+User: My name is John and I like dogs.
+```json
+{"action": "respond", "response": "ok"}
 ```
 User: How are you?
 ```json

@@ -72,16 +72,6 @@ def main():
                     context_str += f"* Current activity: Working in {activity_snapshot.get('application', 'unknown')}\n"
                     context_str += f"* Duration: {activity_snapshot.get('duration_seconds', 0)} seconds\n"
                     
-                # OCR Integration
-                screen_keywords = ["screen", "display", "monitor", "what's on my screen", "what is on my screen", "read my screen", "read the screen", "screen text", "what does this say on my screen"]
-                if any(word in user_input.lower() for word in screen_keywords):
-                    ocr_result = capture_screen_text()
-                    context_str += "\nSCREEN TEXT (OCR):\n"
-                    if ocr_result:
-                        context_str += f"The following text is currently visible on the screen:\n{ocr_result}\n"
-                    else:
-                        context_str += "No readable text could be extracted from the screen.\n"
-                
                 # RAG: retrieve relevant long-term memories
                 relevant_memories = memory_store.retrieve(user_input)
                 if relevant_memories:
@@ -105,6 +95,16 @@ def main():
                 else:
                     print("[DEBUG TOOL] No tool required.")
                 
+                # OCR Integration
+                screen_keywords = ["screen", "display", "monitor", "what's on my screen", "what is on my screen", "read my screen", "read the screen", "screen text", "what does this say on my screen"]
+                if any(word in user_input.lower() for word in screen_keywords):
+                    ocr_result = capture_screen_text()
+                    context_str += "\nSCREEN TEXT (OCR):\n"
+                    if ocr_result:
+                        context_str += f"The following text is currently visible on the screen:\n{ocr_result}\n"
+                    else:
+                        context_str += "No readable text could be extracted from the screen.\n"
+
                 llm_thread = threading.Thread(
                     target=stream_response,
                     args=(user_input, history, sentence_queue, interruption_event, GLOBAL_SHUTDOWN, context_str)

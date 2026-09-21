@@ -26,6 +26,7 @@ class TestTools(unittest.TestCase):
         self.assertIn("get_current_activity", TOOL_REGISTRY)
         self.assertIn("open_application", TOOL_REGISTRY)
         self.assertIn("create_file", TOOL_REGISTRY)
+        self.assertIn("google_search", TOOL_REGISTRY)
 
     def test_invalid_tool_name(self):
         result = execute_tool("non_existent_tool", {})
@@ -99,6 +100,24 @@ class TestTools(unittest.TestCase):
         with open(file_path, "r", encoding="utf-8") as f:
             self.assertEqual(f.read(), "Original")
 
+    @patch('app.tools.webbrowser.open')
+    def test_google_search_tool(self, mock_webbrowser):
+        result = execute_tool("google_search", {"query": "how to install PostgreSQL on Windows"})
+        self.assertTrue(result["success"])
+        self.assertEqual(result["query"], "how to install PostgreSQL on Windows")
+        mock_webbrowser.assert_called_once_with("https://www.google.com/search?q=how%20to%20install%20PostgreSQL%20on%20Windows")
+
+    def test_google_search_empty_query(self):
+        result = execute_tool("google_search", {"query": ""})
+        self.assertFalse(result["success"])
+        self.assertIn("Query not provided", result["error"])
+        
+    @patch('app.tools.webbrowser.open')
+    def test_google_search_special_chars(self, mock_webbrowser):
+        result = execute_tool("google_search", {"query": "C++ & C# ?"})
+        self.assertTrue(result["success"])
+        mock_webbrowser.assert_called_once_with("https://www.google.com/search?q=C%2B%2B%20%26%20C%23%20%3F")
+
     @patch('app.llm.requests.post')
     def test_llm_decision_tool_call(self, mock_post):
         mock_response = MagicMock()
@@ -126,6 +145,21 @@ class TestTools(unittest.TestCase):
         
         decision = make_tool_decision("How are you?", [])
         self.assertEqual(decision["action"], "respond")
+
+    @patch('app.llm.requests.post')
+    def test_llm_decision_google_search(self, mock_post):
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "message": {
+                "content": '{"action": "tool_call", "tool": "google_search", "arguments": {"query": "Python 3.13 features"}}'
+            }
+        }
+        mock_post.return_value = mock_response
+        
+        decision = make_tool_decision("Google search Python 3.13 features", [])
+        self.assertEqual(decision["action"], "tool_call")
+        self.assertEqual(decision["tool"], "google_search")
+        self.assertEqual(decision["arguments"]["query"], "Python 3.13 features")
 
     @patch('app.llm.requests.post')
     def test_llm_decision_malformed_json(self, mock_post):
